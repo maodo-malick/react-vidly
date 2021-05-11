@@ -1,16 +1,36 @@
 import React, {Component} from 'react';
 import {getMovies} from '../services/fakeMovieService';
 import 'font-awesome/css/font-awesome.css';
-import Like from './common/like';
 import Paginator from './common/paginator';
+import List from './common/list'
 import { paginate } from '../utils/paginate';
+import {getGenres} from '../services/fakeGenreService';
+import MovieTable from './movieTable';
+import _ from 'lodash';
 class Movie extends Component
 {
     state = {
-        movies: getMovies(),
+        movies:[],
         size: 4,
-        currentPage:1
+        currentPage:1,
+        genres: [],
+        sortColumn: {path:"title", order:"asc"}
     };
+    componentDidMount ()
+    {
+        const genres= [{ _id:"",name:"All genres"},...getGenres()];
+        this.setState({movies: getMovies(), genres});
+    };
+    getPageData=()=>{
+        const {currentPage, size ,selectedGenres,
+            movies:allMovie,sortColumn}= this.state;
+
+        const filtered = selectedGenres && selectedGenres._id? allMovie.filter(m=>m.genre._id === selectedGenres._id): allMovie
+        const sort=  _.orderBy(filtered,[sortColumn.path],[sortColumn.order])
+         const movies = paginate(sort, currentPage, size);
+         return {totalCount:filtered.length, data:movies};
+
+    }
 //  
 handleDelete = movie => {
 const movies = this.state.movies.filter(m =>m._id !== movie._id);
@@ -28,42 +48,49 @@ handlePageChange= page =>
 {
 this.setState({currentPage: page});
 };
+handleGenresSelected = genre => 
+{
+   this.setState({selectedGenres:genre, currentPage:1});
+};
+handleSort = sortColumn => {
+   
+   this.setState({sortColumn});
+};
 
     render()
     {
         const { length : count } = this.state.movies;
-        const {currentPage, size , movies:allMovie}= this.state;
+        const {currentPage, size ,sortColumn}= this.state;
         if(count === 0) return  <h3>They are no film in to the cinema</h3>;
-        const movies = paginate(allMovie, currentPage, size);
+        const {data:movies,totalCount}=this.getPageData();
         return(
             <React.Fragment>
-                <h3> showing {count} hot film in to the cinema</h3>
-                <table className="table">
-                    <thead>
-                    <th>Title</th>
-                    <th>Genre</th>
-                    <th>Stock</th>
-                    <th>Rate</th>
-                    <th></th>
-                    <th></th>
-                    </thead>
-                    <tbody>
-                    {movies.map(movie => (<tr key={movie._id} >
-                            <td>{movie.title}</td>
-                            <td>{movie.genre.name}</td>
-                            <td>{movie.numberInStock}</td>
-                            <td>{movie.dailyRentalRate}</td>
-                            <td><Like liked={movie.like} onClick={()=>this.handleLike(movie)}/> </td>
-                            <td><button  onClick={()=> this.handleDelete(movie)} className="btn btn-danger btn-sm">Delete</button></td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
+                <div className="container">
+                    <div className="row justify-content-md-center">
+                      <div className="col-6 col-sm-3">
+                         <List items={this.state.genres} onItemSelected={this.handleGenresSelected} selectedItem={this.state.selectedGenres}/>
+                      </div>
+                      <div className="col">
+                      <h3> showing {totalCount} hot film in to the cinema</h3>
+                        <MovieTable onLiked={this.handleLike} 
+                        onDelete={this.handleDelete}
+                         movies= {movies}
+                         onSort={this.handleSort}
+                         sortColumn={sortColumn}/>
+                      </div>
+
+                    </div>
+               
                  <div className="row">
                      <div className="col-6 col-md-10">
-                         <Paginator totalItem={count} itemsPerPage={size} onPageChange={this.handlePageChange} currentPage={currentPage}/>
+                         <Paginator totalItem={totalCount}
+                          itemsPerPage={size}
+                           onPageChange={this.handlePageChange}
+                          currentPage={currentPage}/>
                          </div>    
                  </div>
+
+                </div>
             </React.Fragment>
 
 
